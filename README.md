@@ -58,6 +58,12 @@ npx hardhat compile
 npx hardhat test
 ```
 
+### Run Tests with Coverage
+
+```bash
+npm run test:coverage
+```
+
 ### Run Tests with Gas Reporting
 
 ```bash
@@ -118,7 +124,49 @@ test/
 ├── TokenPaymaster.test.js
 ├── SessionKeyModule.test.js
 ├── SocialRecoveryModule.test.js
-└── Integration.test.js
+├── Integration.test.js
+└── Security.test.js            # Vulnerability analysis tests
+```
+
+## Security Features
+
+### Contract Hardening
+
+| Contract | Guard | Description |
+|----------|-------|-------------|
+| `SmartAccount` | Empty batch | Rejects `executeBatch([])` |
+| `SmartAccount` | Module self-enable | Prevents enabling `address(this)` as module |
+| `SmartAccount` | Withdraw guard | Rejects withdrawal to `address(0)` |
+| `SmartAccount` | Double init | `initialize()` callable only once |
+| `SmartAccountFactory` | Zero-address owner | Rejects `createAccount(address(0), salt)` |
+| `SessionKeyModule` | Zero-key guard | Rejects `registerSessionKey(address(0), ...)` |
+| `SessionKeyModule` | Time window | Rejects `validUntil <= validAfter` |
+| `SessionKeyModule` | Duplicate guard | Rejects re-registering active key |
+| `SocialRecoveryModule` | Self-guardian | Prevents adding self as guardian |
+| `SocialRecoveryModule` | Max guardians | Cap at 10 to prevent unbounded gas |
+| `TokenPaymaster` | Config bounds | Rejects zero-address token/oracle, markup 0% or >200% |
+| `TokenPaymaster` | Withdraw guard | Rejects withdrawal to `address(0)` |
+
+### Vulnerability Tests (38 tests)
+
+| Category | Tests | Vectors Covered |
+|----------|-------|-----------------|
+| SmartAccount | 11 | Empty batch, module spoofing, double init, upgrade auth, self-transfer, revert propagation |
+| SmartAccountFactory | 2 | Zero-address owner, idempotent deploy |
+| SessionKeyModule | 6 | Zero key, invalid time, duplicate, cross-account, revoke+re-register |
+| SocialRecoveryModule | 6 | Self-guardian, max cap, re-initiate clears state, cancel cleanup, threshold adjustment |
+| TokenPaymaster | 7 | Zero-address config, zero/excessive markup, withdraw guard |
+| VerifyingPaymaster | 4 | Zero-address signer, construction guard, hash consistency |
+| Replay Prevention | 2 | Nonce-based hash uniqueness, nonce tracking |
+
+### Static Analysis
+
+```bash
+# Install Slither (requires Python)
+pip3 install slither-analyzer
+
+# Run analysis
+npm run audit:slither
 ```
 
 ## SDK Usage Examples

@@ -33,6 +33,7 @@ contract SmartAccountFactory {
         address owner,
         uint256 salt
     ) public returns (SmartAccount ret) {
+        if (owner == address(0)) revert AccountErrors.ZeroAddress();
         address addr = computeAddress(owner, salt);
         uint256 codeSize = addr.code.length;
         if (codeSize > 0) {

@@ -56,4 +56,31 @@ library AccountErrors {
 
     /// @notice Paymaster signature expired
     error PaymasterSignatureExpired();
+
+    /// @notice Batch execution with empty arrays
+    error EmptyBatch();
+
+    /// @notice Invalid module address (e.g. self-enabling)
+    error InvalidModule();
+
+    /// @notice Session key time window is invalid (validUntil <= validAfter)
+    error InvalidSessionKeyTime();
+
+    /// @notice Session key is already active
+    error SessionKeyAlreadyActive();
+
+    /// @notice Cannot add self as guardian
+    error SelfGuardian();
+
+    /// @notice Cannot recover to current owner
+    error RecoverToCurrentOwner();
+
+    /// @notice Maximum number of guardians reached
+    error MaxGuardiansReached();
+
+    /// @notice Invalid price markup value
+    error InvalidMarkup();
+
+    /// @notice Invalid token or oracle address
+    error InvalidTokenOrOracle();
 }

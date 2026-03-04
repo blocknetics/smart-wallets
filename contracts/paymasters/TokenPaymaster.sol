@@ -69,6 +69,8 @@ contract TokenPaymaster is BasePaymaster {
         IOracle _oracle,
         uint32 _priceMarkup
     ) external onlyOwner {
+        if (address(_token) == address(0) || address(_oracle) == address(0)) revert AccountErrors.InvalidTokenOrOracle();
+        if (_priceMarkup == 0 || _priceMarkup > 20000) revert AccountErrors.InvalidMarkup();
         token = _token;
         oracle = _oracle;
         priceMarkup = _priceMarkup;
@@ -144,6 +146,7 @@ contract TokenPaymaster is BasePaymaster {
      * @param amount Amount to withdraw.
      */
     function withdrawTokens(address to, uint256 amount) external onlyOwner {
+        if (to == address(0)) revert AccountErrors.ZeroAddress();
         token.safeTransfer(to, amount);
     }
 }

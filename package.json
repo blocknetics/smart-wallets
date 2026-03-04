@@ -7,10 +7,13 @@
     "compile": "hardhat compile",
     "test": "hardhat test",
     "test:gas": "REPORT_GAS=true hardhat test",
+    "test:coverage": "hardhat coverage",
     "deploy:factory": "hardhat run scripts/deploy-factory.js",
     "deploy:paymaster": "hardhat run scripts/deploy-verifying-paymaster.js",
     "deploy:token-paymaster": "hardhat run scripts/deploy-token-paymaster.js",
-    "create:account": "hardhat run scripts/create-account.js"
+    "create:account": "hardhat run scripts/create-account.js",
+    "clean": "hardhat clean",
+    "audit:slither": "slither . --config-file slither.config.json"
   },
   "keywords": [],
   "author": "",

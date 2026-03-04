@@ -11,6 +11,7 @@ import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
 import "@account-abstraction/contracts/core/BaseAccount.sol";
 import "@account-abstraction/contracts/core/Helpers.sol";
+import "@account-abstraction/contracts/interfaces/PackedUserOperation.sol";
 import "../libraries/AccountErrors.sol";
 
 /**
@@ -129,6 +130,7 @@ contract SmartAccount is BaseAccount, UUPSUpgradeable, Initializable {
      */
     function enableModule(address module) external onlyOwner {
         if (module == address(0)) revert AccountErrors.ZeroAddress();
+        if (module == address(this)) revert AccountErrors.InvalidModule();
         modules[module] = true;
         emit ModuleEnabled(module);
     }
@@ -175,7 +177,55 @@ contract SmartAccount is BaseAccount, UUPSUpgradeable, Initializable {
      * @param amount Amount to withdraw.
      */
     function withdrawDepositTo(address payable withdrawAddress, uint256 amount) public onlyOwner {
+        if (withdrawAddress == address(0)) revert AccountErrors.ZeroAddress();
         entryPoint().withdrawTo(withdrawAddress, amount);
+    }
+
+    // ─── Batch Override ─────────────────────────────────────────────────
+    /**
+     * @notice Override executeBatch to reject empty batches.
+     */
+    function executeBatch(Call[] calldata calls) external virtual override {
+        _requireForExecute();
+        if (calls.length == 0) revert AccountErrors.EmptyBatch();
+
+        uint256 callsLength = calls.length;
+        for (uint256 i = 0; i < callsLength; i++) {
+            Call calldata call1 = calls[i];
+            bool ok = _executeCall(call1.target, call1.value, call1.data);
+            if (!ok) {
+                if (callsLength == 1) {
+                    _revertWithData();
+                } else {
+                    revert ExecuteError(i, _getReturnData());
+                }
+            }
+        }
+    }
+
+    function _executeCall(address target, uint256 value, bytes calldata data) internal returns (bool) {
+        (bool success, ) = target.call{value: value}(data);
+        return success;
+    }
+
+    function _revertWithData() internal pure {
+        assembly {
+            let size := returndatasize()
+            returndatacopy(0, 0, size)
+            revert(0, size)
+        }
+    }
+
+    function _getReturnData() internal pure returns (bytes memory) {
+        bytes memory returnData;
+        assembly {
+            let size := returndatasize()
+            returnData := mload(0x40)
+            mstore(returnData, size)
+            returndatacopy(add(returnData, 0x20), 0, size)
+            mstore(0x40, add(returnData, add(0x20, size)))
+        }
+        return returnData;
     }
 
     // ─── UUPS ───────────────────────────────────────────────────────────

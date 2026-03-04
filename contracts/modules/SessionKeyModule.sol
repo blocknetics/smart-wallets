@@ -60,6 +60,10 @@ contract SessionKeyModule {
         uint48 validUntil,
         address[] calldata targets
     ) external {
+        if (key == address(0)) revert AccountErrors.ZeroAddress();
+        if (validUntil <= validAfter) revert AccountErrors.InvalidSessionKeyTime();
+        if (sessionKeys[msg.sender][key].active) revert AccountErrors.SessionKeyAlreadyActive();
+
         sessionKeys[msg.sender][key] = SessionKey({
             validAfter: validAfter,
             validUntil: validUntil,

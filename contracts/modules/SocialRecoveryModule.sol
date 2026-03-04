@@ -28,6 +28,9 @@ contract SocialRecoveryModule {
     /// @notice Time-lock delay after threshold is met (default 2 days)
     uint256 public constant RECOVERY_DELAY = 2 days;
 
+    /// @notice Maximum number of guardians per account
+    uint256 public constant MAX_GUARDIANS = 10;
+
     /// @notice account => list of guardians
     mapping(address => address[]) public guardians;
 
@@ -66,7 +69,9 @@ contract SocialRecoveryModule {
      */
     function addGuardian(address guardian) external {
         if (guardian == address(0)) revert AccountErrors.ZeroAddress();
+        if (guardian == msg.sender) revert AccountErrors.SelfGuardian();
         if (isGuardian[msg.sender][guardian]) revert AccountErrors.GuardianAlreadyExists();
+        if (guardianCount[msg.sender] >= MAX_GUARDIANS) revert AccountErrors.MaxGuardiansReached();
 
         isGuardian[msg.sender][guardian] = true;
         guardians[msg.sender].push(guardian);
