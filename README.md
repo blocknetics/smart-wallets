@@ -4,22 +4,74 @@ A production-grade ERC-4337 Account Abstraction implementation featuring smart c
 
 ## Architecture
 
+```mermaid
+graph TB
+    User["👤 User / dApp"] -->|"Build & sign UserOp"| Bundler["📦 Bundler (RPC)"]
+    Bundler -->|"handleOps()"| EP["🔷 EntryPoint"]
+
+    EP -->|"validateUserOp()"| SA["🔐 SmartAccount<br/><i>UUPS-upgradeable wallet</i>"]
+    EP -->|"validatePaymasterUserOp()"| VP["💳 VerifyingPaymaster<br/><i>Gas sponsorship</i>"]
+    EP -->|"validatePaymasterUserOp()"| TP["🪙 TokenPaymaster<br/><i>ERC-20 gas payment</i>"]
+
+    SA -->|"executeModule()"| SK["🔑 SessionKeyModule<br/><i>Temporary scoped keys</i>"]
+    SA -->|"recoverOwnership()"| SR["🛡️ SocialRecoveryModule<br/><i>Guardian-based recovery</i>"]
+
+    Factory["🏭 SmartAccountFactory<br/><i>CREATE2 deterministic deploy</i>"] -->|"createAccount()"| SA
+
+    style EP fill:#1e40af,stroke:#3b82f6,color:#fff
+    style SA fill:#7c3aed,stroke:#a78bfa,color:#fff
+    style VP fill:#0f766e,stroke:#2dd4bf,color:#fff
+    style TP fill:#0f766e,stroke:#2dd4bf,color:#fff
+    style SK fill:#92400e,stroke:#fbbf24,color:#fff
+    style SR fill:#92400e,stroke:#fbbf24,color:#fff
+    style Factory fill:#4a044e,stroke:#d946ef,color:#fff
 ```
-┌──────────────┐     ┌──────────────────┐     ┌────────────────┐
-│   User/dApp  │────▶│  Bundler (RPC)   │────▶│   EntryPoint   │
-└──────────────┘     └──────────────────┘     └───────┬────────┘
-                                                      │
-                              ┌────────────────────────┼────────────────────────┐
-                              │                        │                        │
-                    ┌─────────▼─────────┐   ┌─────────▼─────────┐   ┌─────────▼─────────┐
-                    │   SmartAccount    │   │ VerifyingPaymaster │   │  TokenPaymaster   │
-                    │  (User's Wallet)  │   │ (Gas Sponsorship)  │   │ (ERC-20 Gas Pay)  │
-                    └─────┬───────┬─────┘   └───────────────────┘   └───────────────────┘
-                          │       │
-               ┌──────────▼──┐  ┌─▼──────────────────┐
-               │ SessionKey  │  │  SocialRecovery     │
-               │   Module    │  │     Module          │
-               └─────────────┘  └─────────────────────┘
+
+## UserOperation Workflow
+
+```mermaid
+sequenceDiagram
+    participant dApp
+    participant SDK as Client SDK
+    participant Bundler
+    participant EP as EntryPoint
+    participant Paymaster
+    participant Account as SmartAccount
+
+    rect rgb(30, 27, 75)
+    Note over dApp,SDK: 1 — Build UserOperation
+    dApp->>SDK: Build callData (execute/batch)
+    SDK->>SDK: Estimate gas limits
+    SDK->>SDK: Sign UserOp with owner key
+    end
+
+    rect rgb(20, 50, 60)
+    Note over SDK,Bundler: 2 — Submit to Bundler
+    SDK->>Bundler: eth_sendUserOperation(userOp, entryPoint)
+    Bundler->>Bundler: Local validation & simulation
+    end
+
+    rect rgb(30, 58, 38)
+    Note over Bundler,Account: 3 — On-Chain Execution
+    Bundler->>EP: handleOps([userOp])
+    EP->>Account: validateUserOp(userOp, missingFunds)
+    Account-->>EP: validationData (signature OK)
+
+    alt Gas Sponsored
+        EP->>Paymaster: validatePaymasterUserOp()
+        Paymaster-->>EP: Approved (signature valid)
+    end
+
+    EP->>Account: execute(target, value, data)
+    Account->>Account: Call target contract
+    end
+
+    rect rgb(55, 48, 20)
+    Note over Bundler,EP: 4 — Settlement
+    EP-->>Bundler: UserOperationEvent emitted
+    Bundler-->>SDK: userOpHash receipt
+    SDK-->>dApp: Transaction confirmed
+    end
 ```
 
 ## Features
